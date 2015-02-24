@@ -35,6 +35,9 @@ typedef enum
     REQUEST_BREAKSENTENCE_TAG
 }ParserTag;
 
+#pragma mark - Class properties
+NSMutableString *nodeValue;
+
 #pragma mark - C functions
 
 NSString * generateSchema(NSString *);
@@ -384,6 +387,7 @@ NSString * generateSchema(NSString * text)
 - (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict
 {
     _elementString = [elementName copy];
+	nodeValue = [[NSMutableString alloc] init];
 }
 
 - (void)parser:(NSXMLParser *)parser foundCharacters:(NSString *)string
@@ -391,7 +395,7 @@ NSString * generateSchema(NSString * text)
     if(parser.tag == REQUEST_TRANSLATE_TAG)
     {
         if([_elementString isEqualToString:@"string"])
-            [[NSNotificationCenter defaultCenter] postNotificationName:kRequestTranslate object:@{@"result" : string, @"isSuccessful": @YES}];
+            [nodeValue appendString:string];
         else if([_elementString isEqualToString:@"h1"])
         {
             if([string isEqualToString:@"Argument Exception"])
@@ -420,13 +424,13 @@ NSString * generateSchema(NSString * text)
     {
         if([_elementString isEqualToString:@"TranslatedText"])
         {
-            [_translatedArray addObject:string];
+            [nodeValue appendString:string];
         }
     }
     else if(parser.tag == REQUEST_DETECT_TEXT_TAG)
     {
         if([_elementString isEqualToString:@"string"])
-            [[NSNotificationCenter defaultCenter] postNotificationName:kRequestDetectLanguage object:@{@"result" : string, @"isSuccessful": @YES}];
+            [nodeValue appendString:string];
         else if([_elementString isEqualToString:@"h1"])
         {
             if([string isEqualToString:@"Argument Exception"])
@@ -459,6 +463,24 @@ NSString * generateSchema(NSString * text)
             _sentenceCount ++;
         }
     }
+}
+
+-(void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName
+{
+	if(parser.tag == REQUEST_TRANSLATE_TAG)
+	{
+		[[NSNotificationCenter defaultCenter] postNotificationName:kRequestTranslate object:@{@"result" : nodeValue, @"isSuccessful": @YES}];
+	}
+	else if(parser.tag == REQUEST_DETECT_TEXT_TAG)
+	{
+		[[NSNotificationCenter defaultCenter] postNotificationName:kRequestDetectLanguage object:@{@"result" : nodeValue, @"isSuccessful": @YES}];
+	}
+	else if(parser.tag == REQUEST_TRANSLATE_ARRAY_TAG)
+	{
+		if([_elementString isEqualToString:@"TranslatedText"]) {
+			[_translatedArray addObject:nodeValue];
+		}
+	}
 }
 
 @end
